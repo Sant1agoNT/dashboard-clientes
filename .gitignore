@@ -1,0 +1,15 @@
+# Arquivos de documentação temporária
+*.md
+!README.md
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
