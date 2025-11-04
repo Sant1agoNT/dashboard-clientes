@@ -923,6 +923,7 @@
             }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -993,10 +994,16 @@
                 <div class="broadcast-description">
                     Envie mensagem de agradecimento para <strong>TODOS os clientes</strong> com WhatsApp de uma só vez
                 </div>
-                <button class="broadcast-btn" onclick="openGlobalBroadcastModal()">
-                    <span>📢</span>
-                    <span>Enviar para Todos os Clientes</span>
-                </button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="broadcast-btn" onclick="openGlobalBroadcastModal()" style="flex: 1; min-width: 250px;">
+                        <span>📢</span>
+                        <span>Enviar para Todos os Clientes</span>
+                    </button>
+                    <button class="broadcast-btn" onclick="baixarExcel()" style="flex: 1; min-width: 250px; background: linear-gradient(135deg, #28a745, #20c997);">
+                        <span>📊</span>
+                        <span>Baixar Planilha Excel</span>
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -2233,6 +2240,139 @@ Equipe Algaes4y 🌱</textarea>
             insight += `• <strong>${contactRate}%</strong> dos clientes têm WhatsApp válido`;
 
             container.innerHTML = insight;
+        }
+
+        // Função para baixar Excel
+        function baixarExcel() {
+            if (!window.XLSX) {
+                alert('❌ Biblioteca Excel não carregada. Por favor, recarregue a página.');
+                return;
+            }
+
+            try {
+                // Criar workbook
+                const wb = XLSX.utils.book_new();
+
+                // ABA 1: RESUMO
+                const resumoData = [
+                    ['RESUMO GERAL - CLIENTES ADICIONADOS'],
+                    [],
+                    ['Colaborador', 'Email', 'Qtd. Clientes']
+                ];
+
+                let totalGeral = 0;
+                for (const [userId, clients] of Object.entries(userGroups)) {
+                    const user = userMapping[userId] || { name: `Usuário ${userId}`, email: 'N/A' };
+                    resumoData.push([user.name, user.email, clients.length]);
+                    totalGeral += clients.length;
+                }
+
+                resumoData.push([]);
+                resumoData.push(['TOTAL DE CLIENTES:', '', totalGeral]);
+                resumoData.push(['Data de Geração:', new Date().toLocaleString('pt-BR')]);
+
+                const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+                wsResumo['!cols'] = [{ wch: 30 }, { wch: 35 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, wsResumo, 'RESUMO');
+
+                // ABA 2-N: Uma aba por colaborador
+                for (const [userId, clients] of Object.entries(userGroups)) {
+                    const user = userMapping[userId] || { name: `Usuário ${userId}` };
+                    const clientsData = clients.map((client, index) => {
+                        const clientName = client.data[2] || 'Sem nome';
+                        const nickname = client.data[3] || '';
+                        const contactInfo = clientContactMapping[clientName] || {};
+                        
+                        // Formatar telefone
+                        let phone = contactInfo.phone || client.data[4] || 'Não informado';
+                        if (phone && phone !== 'Não informado' && phone !== '_PII_') {
+                            const phoneClean = phone.replace(/\D/g, '');
+                            if (phoneClean.length === 11) {
+                                phone = `(${phoneClean.substring(0,2)}) ${phoneClean.substring(2,7)}-${phoneClean.substring(7)}`;
+                            } else if (phoneClean.length === 10) {
+                                phone = `(${phoneClean.substring(0,2)}) ${phoneClean.substring(2,6)}-${phoneClean.substring(6)}`;
+                            }
+                        } else {
+                            phone = 'Não informado';
+                        }
+
+                        return {
+                            '#': index + 1,
+                            'Nome do Cliente': clientName,
+                            'Apelido/Empresa': nickname,
+                            'Telefone': phone,
+                            'Email': contactInfo.email || 'Não informado',
+                            'Data de Cadastro': new Date(client.timestamp).toLocaleString('pt-BR')
+                        };
+                    });
+
+                    const ws = XLSX.utils.json_to_sheet(clientsData);
+                    ws['!cols'] = [
+                        { wch: 5 },   // #
+                        { wch: 30 },  // Nome
+                        { wch: 25 },  // Apelido
+                        { wch: 18 },  // Telefone
+                        { wch: 30 },  // Email
+                        { wch: 20 }   // Data
+                    ];
+
+                    const sheetName = user.name.substring(0, 30);
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                }
+
+                // ABA FINAL: TODOS OS CLIENTES
+                const allClientsData = [];
+                for (const [userId, clients] of Object.entries(userGroups)) {
+                    const user = userMapping[userId] || { name: `Usuário ${userId}` };
+                    clients.forEach((client, index) => {
+                        const clientName = client.data[2] || 'Sem nome';
+                        const nickname = client.data[3] || '';
+                        const contactInfo = clientContactMapping[clientName] || {};
+                        
+                        let phone = contactInfo.phone || client.data[4] || 'Não informado';
+                        if (phone && phone !== 'Não informado' && phone !== '_PII_') {
+                            const phoneClean = phone.replace(/\D/g, '');
+                            if (phoneClean.length === 11) {
+                                phone = `(${phoneClean.substring(0,2)}) ${phoneClean.substring(2,7)}-${phoneClean.substring(7)}`;
+                            } else if (phoneClean.length === 10) {
+                                phone = `(${phoneClean.substring(0,2)}) ${phoneClean.substring(2,6)}-${phoneClean.substring(6)}`;
+                            }
+                        } else {
+                            phone = 'Não informado';
+                        }
+
+                        allClientsData.push({
+                            'Colaborador': user.name,
+                            'Nome do Cliente': clientName,
+                            'Apelido/Empresa': nickname,
+                            'Telefone': phone,
+                            'Email': contactInfo.email || 'Não informado',
+                            'Data de Cadastro': new Date(client.timestamp).toLocaleString('pt-BR')
+                        });
+                    });
+                }
+
+                const wsAll = XLSX.utils.json_to_sheet(allClientsData);
+                wsAll['!cols'] = [
+                    { wch: 25 },  // Colaborador
+                    { wch: 30 },  // Nome
+                    { wch: 25 },  // Apelido
+                    { wch: 18 },  // Telefone
+                    { wch: 30 },  // Email
+                    { wch: 20 }   // Data
+                ];
+                XLSX.utils.book_append_sheet(wb, wsAll, 'TODOS');
+
+                // Gerar arquivo
+                const fileName = `Clientes_Por_Colaborador_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+
+                alert(`✅ Excel gerado com sucesso!\n📁 Arquivo: ${fileName}\n📊 ${totalGeral} clientes em ${Object.keys(userGroups).length + 1} abas`);
+
+            } catch (error) {
+                console.error('Erro ao gerar Excel:', error);
+                alert(`❌ Erro ao gerar Excel: ${error.message}`);
+            }
         }
     </script>
 </body>
