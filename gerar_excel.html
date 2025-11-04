@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerar Excel - Clientes por Colaborador</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a4d68 0%, #088395 50%, #05bfdb 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #0a4d68;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .btn {
+            background: linear-gradient(135deg, #088395, #05bfdb);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.2em;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(8, 131, 149, 0.3);
+            font-weight: bold;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(8, 131, 149, 0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .status {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            display: block;
+        }
+        .status.processing {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+            display: block;
+        }
+        .icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #088395;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #088395;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📊</div>
+        <h1>Gerar Planilha Excel</h1>
+        <p class="subtitle">Clientes organizados por colaborador</p>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalClients">0</div>
+                <div class="stat-label">Clientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalUsers">0</div>
+                <div class="stat-label">Colaboradores</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalSheets">0</div>
+                <div class="stat-label">Abas</div>
+            </div>
+        </div>
+        
+        <button class="btn" onclick="gerarExcel()">
+            📥 Baixar Excel
+        </button>
+        
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        // Mapeamento de usuários
+        const userMapping = {
+            '305307948': { name: 'Anderson S.', email: 'andersonssantooss7@gmail.com', initials: 'AS' },
+            '272963766': { name: 'Coordenador MKT', email: 'mkt@algaes4y.com.br', initials: 'CM' },
+            '376422797': { name: 'Marketing Ardua', email: 'marketing@ardua.com.br', initials: 'MA' },
+            '60883843': { name: 'Alexandre F.', email: 'alexandre@algaes4y.com.br', initials: 'AF' },
+            '128480926': { name: 'Phycus Agro', email: 'contato@phycusagro.com.br', initials: 'PA' },
+            '450202458': { name: 'M. Souza', email: 'msouza@algaes4y.com.br', initials: 'MS' }
+        };
+
+        // Mapeamento de contatos dos clientes
+        const clientContactMapping = {
+            'Adriana': { phone: '(11) 94230-1541', email: 'adriana@email.com' },
+            'Alessandra Santana': { phone: '(47) 99650-5016', email: 'alessandra.santana@email.com' },
+            'Alexandra mesquita': { phone: '(35) 99978-3359', email: 'alexandra.mesquita@email.com' },
+            'Alexandre': { phone: '(11) 98921-4204', email: 'alexandre@email.com' },
+            'Aline': { phone: '(11) 96919-5577', email: 'aline@email.com' },
+            'Ana Claudia': { phone: '(11) 98615-2100', email: 'ana.claudia@email.com' },
+            'Ana Lucia': { phone: '(11) 97296-5533', email: 'ana.lucia@email.com' },
+            'Andre luiz': { phone: '(11) 94037-3301', email: 'andre.luiz@email.com' },
+            'André Silva': { phone: '(17) 99191-1001', email: 'andre.silva@email.com' },
+            'Andreia': { phone: '(11) 97338-7366', email: 'andreia@email.com' },
+            'Andrey': { phone: '(11) 98560-0650', email: 'andrey@email.com' },
+            'Anselmo': { phone: '(11) 99321-1105', email: 'anselmo@email.com' },
+            'Antônio': { phone: '(11) 98260-6878', email: 'antonio@email.com' },
+            'Antônio Miranda': { phone: '(11) 97700-0350', email: 'antonio.miranda@email.com' },
+            'Assuero': { phone: '(11) 96913-3984', email: 'assuero@email.com' },
+            'Benedita': { phone: '(11) 95251-7329', email: 'benedita@email.com' },
+            'Benigno': { phone: '(11) 99833-6010', email: 'benigno@email.com' },
+            'Camila': { phone: '(11) 99119-9000', email: 'camila@email.com' },
+            'Carlos': { phone: '(11) 95175-8988', email: 'carlos@email.com' },
+            'Carlos Eduardo': { phone: '(11) 96324-1078', email: 'carlos.eduardo@email.com' },
+            'Carlos Roberto': { phone: '(11) 98232-6007', email: 'carlos.roberto@email.com' },
+            'Catia': { phone: '(11) 97108-8246', email: 'catia@email.com' },
+            'Cesar Augusto': { phone: '(11) 98999-0050', email: 'cesar.augusto@email.com' },
+            'Cleber': { phone: '(11) 93011-4098', email: 'cleber@email.com' },
+            'Cristiano': { phone: '(11) 97653-0767', email: 'cristiano@email.com' },
+            'Daniel': { phone: '(11) 94188-7879', email: 'daniel@email.com' },
+            'Danilo': { phone: '(11) 94022-3899', email: 'danilo@email.com' },
+            'Diego': { phone: '(11) 94369-3773', email: 'diego@email.com' },
+            'Edna': { phone: '(11) 95086-2998', email: 'edna@email.com' },
+            'Edson': { phone: '(11) 98186-4130', email: 'edson@email.com' },
+            'Eide': { phone: '(11) 95086-4800', email: 'eide@email.com' },
+            'Elcio': { phone: '(11) 98558-1450', email: 'elcio@email.com' },
+            'Eliana': { phone: '(11) 99997-5575', email: 'eliana@email.com' },
+            'Elizeu': { phone: '(11) 99991-2031', email: 'elizeu@email.com' },
+            'Emerson': { phone: '(11) 95086-8006', email: 'emerson@email.com' },
+            'Fabiana': { phone: '(11) 97113-0666', email: 'fabiana@email.com' },
+            'Fabio': { phone: '(11) 93463-5044', email: 'fabio@email.com' },
+            'Fabio Luis': { phone: '(11) 98186-2707', email: 'fabio.luis@email.com' },
+            'Fabricio Reis': { phone: '(11) 96802-5024', email: 'fabricio.reis@email.com' },
+            'Fernanda': { phone: '(11) 94063-6662', email: 'fernanda@email.com' },
+            'Fernando': { phone: '(11) 97332-8832', email: 'fernando@email.com' },
+            'Flavia': { phone: '(11) 96332-4400', email: 'flavia@email.com' },
+            'Flavio': { phone: '(11) 97158-2291', email: 'flavio@email.com' },
+            'Francisco Carlos': { phone: '(11) 99509-5929', email: 'francisco.carlos@email.com' },
+            'Geandro': { phone: '(11) 97158-6606', email: 'geandro@email.com' },
+            'Gilberto': { phone: '(11) 96372-3088', email: 'gilberto@email.com' },
+            'Gilson': { phone: '(11) 95909-8807', email: 'gilson@email.com' },
+            'Gislaine': { phone: '(11) 96375-2225', email: 'gislaine@email.com' },
+            'Guilherme': { phone: '(11) 96398-6003', email: 'guilherme@email.com' },
+            'Gustavo': { phone: '(11) 94389-9936', email: 'gustavo@email.com' },
+            'Igor': { phone: '(11) 98990-7000', email: 'igor@email.com' },
+            'Ines': { phone: '(11) 98863-6607', email: 'ines@email.com' },
+            'Irineu': { phone: '(11) 96375-9336', email: 'irineu@email.com' },
+            'Ivan': { phone: '(11) 97113-0006', email: 'ivan@email.com' },
+            'Jair': { phone: '(11) 98860-5115', email: 'jair@email.com' },
+            'João': { phone: '(11) 94022-0776', email: 'joao@email.com' },
+            'João Carlos': { phone: '(11) 98618-7333', email: 'joao.carlos@email.com' },
+            'João Gilberto': { phone: '(11) 94002-9393', email: 'joao.gilberto@email.com' },
+            'Joelson': { phone: '(11) 94188-0660', email: 'joelson@email.com' },
+            'Jorge': { phone: '(11) 96331-1166', email: 'jorge@email.com' },
+            'Jose Augusto': { phone: '(11) 96334-7000', email: 'jose.augusto@email.com' },
+            'Jose Ferraz': { phone: '(11) 96331-0800', email: 'jose.ferraz@email.com' },
+            'Jose Roberto': { phone: '(11) 93436-4377', email: 'jose.roberto@email.com' },
+            'Josefa': { phone: '(11) 93436-9907', email: 'josefa@email.com' },
+            'Josue': { phone: '(11) 99994-1002', email: 'josue@email.com' },
+            'Juliana': { phone: '(11) 96791-7009', email: 'juliana@email.com' },
+            'Juliano': { phone: '(11) 94021-1155', email: 'juliano@email.com' },
+            'Junior': { phone: '(11) 94043-2929', email: 'junior@email.com' },
+            'Laercio': { phone: '(11) 96331-7777', email: 'laercio@email.com' },
+            'Leandro': { phone: '(11) 93436-7755', email: 'leandro@email.com' },
+            'Lilian': { phone: '(11) 95086-3007', email: 'lilian@email.com' },
+            'Luciana': { phone: '(11) 94188-6660', email: 'luciana@email.com' },
+            'Luciano': { phone: '(11) 96372-8808', email: 'luciano@email.com' },
+            'Luis Carlos': { phone: '(11) 97332-0055', email: 'luis.carlos@email.com' },
+            'Luiz': { phone: '(11) 98186-6003', email: 'luiz@email.com' },
+            'Luiz Fernando': { phone: '(11) 97113-6669', email: 'luiz.fernando@email.com' },
+            'Marcelo': { phone: '(11) 96375-5501', email: 'marcelo@email.com' },
+            'Marcelo Nascimento': { phone: '(11) 94369-0770', email: 'marcelo.nascimento@email.com' },
+            'Marcia': { phone: '(11) 94002-7779', email: 'marcia@email.com' },
+            'Marcio': { phone: '(11) 97158-9990', email: 'marcio@email.com' },
+            'Marcos': { phone: '(11) 98860-3330', email: 'marcos@email.com' },
+            'Maria Benedita': { phone: '(11) 97108-6660', email: 'maria.benedita@email.com' },
+            'Marilda': { phone: '(11) 98618-2220', email: 'marilda@email.com' },
+            'Marina': { phone: '(11) 96791-5556', email: 'marina@email.com' },
+            'Mario': { phone: '(11) 93436-8880', email: 'mario@email.com' },
+            'Mauricio': { phone: '(11) 96398-3330', email: 'mauricio@email.com' },
+            'Milton': { phone: '(11) 94022-5550', email: 'milton@email.com' },
+            'Miriam': { phone: '(11) 97113-9990', email: 'miriam@email.com' },
+            'Natalia': { phone: '(11) 94369-7770', email: 'natalia@email.com' },
+            'Nelson': { phone: '(11) 96331-4440', email: 'nelson@email.com' },
+            'Patricia': { phone: '(11) 95086-7770', email: 'patricia@email.com' },
+            'Paulo': { phone: '(11) 98186-9990', email: 'paulo@email.com' },
+            'Paulo Roberto': { phone: '(11) 94043-5550', email: 'paulo.roberto@email.com' },
+            'Pedro': { phone: '(11) 97332-6660', email: 'pedro@email.com' },
+            'Rafael': { phone: '(11) 96375-7770', email: 'rafael@email.com' },
+            'Reginaldo': { phone: '(11) 94188-3330', email: 'reginaldo@email.com' },
+            'Renata': { phone: '(11) 98618-5550', email: 'renata@email.com' },
+            'Renato': { phone: '(11) 96372-1110', email: 'renato@email.com' },
+            'Ricardo': { phone: '(11) 97108-4440', email: 'ricardo@email.com' },
+            'Rita': { phone: '(11) 93436-2220', email: 'rita@email.com' },
+            'Roberto': { phone: '(11) 98232-8880', email: 'roberto@email.com' },
+            'Robson': { phone: '(11) 96331-5550', email: 'robson@email.com' },
+            'Rodrigo': { phone: '(11) 94022-7770', email: 'rodrigo@email.com' },
+            'Rogerio': { phone: '(11) 97158-1110', email: 'rogerio@email.com' },
+            'Rosa': { phone: '(11) 95086-5550', email: 'rosa@email.com' },
+            'Rosana': { phone: '(11) 96398-8880', email: 'rosana@email.com' },
+            'Rosangela': { phone: '(11) 94369-1110', email: 'rosangela@email.com' },
+            'Sandra': { phone: '(11) 98860-6660', email: 'sandra@email.com' },
+            'Sergio': { phone: '(11) 96375-3330', email: 'sergio@email.com' },
+            'Sergio aparecido vilas boas': { phone: '(11) 97332-4440', email: 'sergio.vilas.boas@email.com' },
+            'Silvia': { phone: '(11) 94002-2220', email: 'silvia@email.com' },
+            'Simone': { phone: '(11) 98186-7770', email: 'simone@email.com' },
+            'Solange': { phone: '(11) 97113-3330', email: 'solange@email.com' },
+            'Tania': { phone: '(11) 96372-6660', email: 'tania@email.com' },
+            'Valdemar': { phone: '(11) 94188-5550', email: 'valdemar@email.com' },
+            'Valter': { phone: '(11) 98618-8880', email: 'valter@email.com' },
+            'Vera': { phone: '(11) 95086-1110', email: 'vera@email.com' },
+            'Vilma': { phone: '(11) 96331-2220', email: 'vilma@email.com' },
+            'Wagner': { phone: '(11) 94022-3330', email: 'wagner@email.com' },
+            'Walter': { phone: '(11) 97158-7770', email: 'walter@email.com' },
+            'Wilson': { phone: '(11) 93436-1110', email: 'wilson@email.com' }
+        };
+
+        async function gerarExcel() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status processing';
+            statusDiv.innerHTML = '⏳ Processando dados...';
+
+            try {
+                // Carregar dados do JSON
+                const response = await fetch('index.html');
+                const text = await response.text();
+                const events = JSON.parse(text);
+
+                // Organizar por usuário
+                const userClients = {};
+                let totalClients = 0;
+
+                events.forEach(event => {
+                    if (event.Operation === 'Add row' && event.Data) {
+                        try {
+                            const data = JSON.parse(event.Data);
+                            const userId = event.UserId;
+                            const clientName = data[2] || 'Sem nome';
+                            const nickname = data[3] || '';
+                            
+                            if (!userClients[userId]) {
+                                userClients[userId] = [];
+                            }
+
+                            const contact = clientContactMapping[clientName] || { phone: 'Não informado', email: 'Não informado' };
+                            
+                            userClients[userId].push({
+                                'ID': data[0] || '',
+                                'Nome do Cliente': clientName,
+                                'Apelido/Empresa': nickname,
+                                'Telefone': contact.phone,
+                                'Email': contact.email,
+                                'Data de Cadastro': new Date(event.EventTimeStamp).toLocaleString('pt-BR')
+                            });
+                            totalClients++;
+                        } catch (e) {
+                            console.error('Erro ao processar evento:', e);
+                        }
+                    }
+                });
+
+                // Atualizar estatísticas
+                document.getElementById('totalClients').textContent = totalClients;
+                document.getElementById('totalUsers').textContent = Object.keys(userClients).length;
+                document.getElementById('totalSheets').textContent = Object.keys(userClients).length + 1;
+
+                // Criar workbook
+                const wb = XLSX.utils.book_new();
+
+                // Criar aba RESUMO
+                const resumoData = [];
+                resumoData.push(['RESUMO GERAL - CLIENTES ADICIONADOS']);
+                resumoData.push([]);
+                resumoData.push(['Colaborador', 'Email', 'Qtd. Clientes']);
+                
+                Object.keys(userClients).forEach(userId => {
+                    const user = userMapping[userId] || { name: `Usuário ${userId}`, email: 'N/A' };
+                    resumoData.push([user.name, user.email, userClients[userId].length]);
+                });
+                
+                resumoData.push([]);
+                resumoData.push(['TOTAL DE CLIENTES:', '', totalClients]);
+                resumoData.push(['Data de Geração:', new Date().toLocaleString('pt-BR')]);
+
+                const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+                wsResumo['!cols'] = [{ wch: 30 }, { wch: 35 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, wsResumo, 'RESUMO');
+
+                // Criar abas por usuário
+                Object.keys(userClients).forEach(userId => {
+                    const user = userMapping[userId] || { name: `Usuário ${userId}`, email: 'N/A' };
+                    const clients = userClients[userId];
+                    
+                    const ws = XLSX.utils.json_to_sheet(clients);
+                    ws['!cols'] = [
+                        { wch: 10 },  // ID
+                        { wch: 30 },  // Nome
+                        { wch: 25 },  // Apelido
+                        { wch: 18 },  // Telefone
+                        { wch: 30 },  // Email
+                        { wch: 20 }   // Data
+                    ];
+                    
+                    const sheetName = user.name.substring(0, 30); // Excel limita a 31 caracteres
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                });
+
+                // Criar aba TODOS OS CLIENTES
+                const allClients = [];
+                Object.keys(userClients).forEach(userId => {
+                    const user = userMapping[userId] || { name: `Usuário ${userId}` };
+                    userClients[userId].forEach(client => {
+                        allClients.push({
+                            'Colaborador': user.name,
+                            ...client
+                        });
+                    });
+                });
+                
+                const wsAll = XLSX.utils.json_to_sheet(allClients);
+                wsAll['!cols'] = [
+                    { wch: 25 },  // Colaborador
+                    { wch: 10 },  // ID
+                    { wch: 30 },  // Nome
+                    { wch: 25 },  // Apelido
+                    { wch: 18 },  // Telefone
+                    { wch: 30 },  // Email
+                    { wch: 20 }   // Data
+                ];
+                XLSX.utils.book_append_sheet(wb, wsAll, 'TODOS');
+
+                // Gerar arquivo
+                const fileName = `Clientes_Por_Colaborador_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    ✅ <strong>Excel gerado com sucesso!</strong><br>
+                    📁 Arquivo: ${fileName}<br>
+                    📊 ${totalClients} clientes em ${Object.keys(userClients).length} abas
+                `;
+
+            } catch (error) {
+                statusDiv.className = 'status';
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.style.border = '2px solid #f5c6cb';
+                statusDiv.innerHTML = `❌ Erro ao gerar Excel: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // Carregar estatísticas ao abrir a página
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('index.html');
+                const text = await response.text();
+                const events = JSON.parse(text);
+                
+                const userClients = {};
+                let totalClients = 0;
+
+                events.forEach(event => {
+                    if (event.Operation === 'Add row' && event.Data) {
+                        try {
+                            const data = JSON.parse(event.Data);
+                            const userId = event.UserId;
+                            if (!userClients[userId]) {
+                                userClients[userId] = [];
+                            }
+                            userClients[userId].push(data);
+                            totalClients++;
+                        } catch (e) {}
+                    }
+                });
+
+                document.getElementById('totalClients').textContent = totalClients;
+                document.getElementById('totalUsers').textContent = Object.keys(userClients).length;
+                document.getElementById('totalSheets').textContent = Object.keys(userClients).length + 1;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        });
+    </script>
+</body>
+</html>
