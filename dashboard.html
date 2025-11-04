@@ -2302,6 +2302,7 @@ Equipe Algaes4y 🌱</textarea>
                             'Apelido/Empresa': nickname,
                             'Telefone': phone,
                             'Email': contactInfo.email || 'Não informado',
+                            'Interesse': client.data[7] || 'Não informado',
                             'Data de Cadastro': new Date(client.timestamp).toLocaleString('pt-BR')
                         };
                     });
@@ -2313,6 +2314,7 @@ Equipe Algaes4y 🌱</textarea>
                         { wch: 25 },  // Apelido
                         { wch: 18 },  // Telefone
                         { wch: 30 },  // Email
+                        { wch: 35 },  // Interesse
                         { wch: 20 }   // Data
                     ];
 
@@ -2347,6 +2349,7 @@ Equipe Algaes4y 🌱</textarea>
                             'Apelido/Empresa': nickname,
                             'Telefone': phone,
                             'Email': contactInfo.email || 'Não informado',
+                            'Interesse': client.data[7] || 'Não informado',
                             'Data de Cadastro': new Date(client.timestamp).toLocaleString('pt-BR')
                         });
                     });
@@ -2359,6 +2362,7 @@ Equipe Algaes4y 🌱</textarea>
                     { wch: 25 },  // Apelido
                     { wch: 18 },  // Telefone
                     { wch: 30 },  // Email
+                    { wch: 35 },  // Interesse
                     { wch: 20 }   // Data
                 ];
                 XLSX.utils.book_append_sheet(wb, wsAll, 'TODOS');
